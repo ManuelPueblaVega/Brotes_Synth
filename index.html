@@ -394,15 +394,11 @@
                 </div>
             </div>
 
-            <!-- Extras -->
+            <!-- Extras (SIN CLICK) -->
             <div class="linear-grid">
                 <div class="key-pad wide" data-key=" ">
                     <div class="key-icon">Espacio</div>
                     <select class="note-select" data-target=" "></select>
-                </div>
-                <div class="key-pad" data-key="Click">
-                    <div class="key-icon">🖱️</div>
-                    <select class="note-select" data-target="Click"></select>
                 </div>
             </div>
         </div>
@@ -449,7 +445,7 @@
             const currentMapping = {
                 'ArrowUp': 'C4', 'ArrowDown': 'D4', 'ArrowLeft': 'E4', 'ArrowRight': 'F4',
                 'w': 'C5', 'a': 'G4', 's': 'A4', 'd': 'B4', 'f': 'D5', 'g': 'E5',
-                ' ': 'F5', 'Click': 'G5'
+                ' ': 'F5'
             };
 
             // --- 2. GESTIÓN DE VISTAS (Makey vs Piano) ---
@@ -677,27 +673,6 @@
                     stopTone(id);
                     el.classList.remove('active');
                     activePointers.delete(e.pointerId);
-                }
-            });
-
-            // Click global Makey
-            document.addEventListener('mousedown', (e) => {
-                if (document.getElementById('piano-view').style.display === 'flex') return;
-                if (!e.target.closest('.key-pad') && 
-                    e.target.tagName !== 'BUTTON' && 
-                    e.target.tagName !== 'SELECT' && 
-                    e.target.tagName !== 'OPTION') {
-                    
-                    highlightKey('Click', true);
-                    playTone('Click');
-                }
-            });
-
-            document.addEventListener('mouseup', (e) => {
-                if (document.getElementById('piano-view').style.display === 'flex') return;
-                if (!e.target.closest('.key-pad')) {
-                    highlightKey('Click', false);
-                    stopTone('Click');
                 }
             });
 
