@@ -24,10 +24,28 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            touch-action: pan-x pan-y; /* Permitir scroll solo donde sea necesario */
+            touch-action: pan-x pan-y;
             -webkit-user-select: none;
             user-select: none;
-            overflow: hidden; /* Evitar rebote en iOS */
+            overflow: hidden;
+        }
+
+        /* Pantalla de Carga para Diagnóstico */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: var(--accent-color);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: opacity 0.5s ease;
         }
 
         header {
@@ -54,7 +72,6 @@
             margin-top: 2px;
         }
 
-        /* Controles Superiores */
         .top-controls {
             display: flex;
             flex-direction: column;
@@ -100,7 +117,6 @@
             100% { transform: scale(1); }
         }
 
-        /* Configuración de Sonido */
         .sound-controls {
             background: #222;
             padding: 5px 10px;
@@ -121,7 +137,6 @@
             font-size: 0.8rem;
         }
 
-        /* ÁREA PRINCIPAL */
         main {
             flex: 1;
             position: relative;
@@ -129,7 +144,7 @@
             overflow: hidden;
         }
 
-        /* --- VISTA MAKEY (PADS) --- */
+        /* VISTA MAKEY */
         #makey-view {
             display: flex;
             flex-direction: column;
@@ -144,7 +159,6 @@
             transition: opacity 0.3s;
         }
 
-        /* Grillas Responsivas */
         .d-pad-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -210,22 +224,20 @@
             text-align-last: center;
         }
 
-        /* Posicionamiento flechas */
         .arrow-up { grid-column: 2; grid-row: 1; }
         .arrow-left { grid-column: 1; grid-row: 2; }
         .arrow-down { grid-column: 2; grid-row: 2; }
         .arrow-right { grid-column: 3; grid-row: 2; }
         .key-pad.wide { width: 170px; }
 
-
-        /* --- VISTA PIANO --- */
+        /* VISTA PIANO */
         #piano-view {
-            display: none; /* Oculto por defecto */
+            display: none;
             height: 100%;
             width: 100%;
             align-items: center;
-            justify-content: flex-start; /* Para permitir scroll */
-            overflow-x: auto; /* Scroll horizontal */
+            justify-content: flex-start;
+            overflow-x: auto;
             overflow-y: hidden;
             background: #000;
             position: relative;
@@ -237,7 +249,6 @@
             height: 250px;
             margin: 0 20px;
             display: flex;
-            /* El ancho se define por el contenido */
             flex-shrink: 0; 
         }
 
@@ -279,7 +290,6 @@
             z-index: 2;
             position: absolute;
             top: 0;
-            /* Left se calcula en JS/HTML inline o CSS específico */
             box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
             border-radius: 0 0 3px 3px;
         }
@@ -305,6 +315,12 @@
     </style>
 </head>
 <body>
+
+    <!-- Pantalla de carga -->
+    <div id="loading-screen">
+        <div>🌱 Brotes Musicales</div>
+        <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Cargando...</div>
+    </div>
 
     <header>
         <h1>Brotes Synth</h1>
@@ -394,7 +410,7 @@
         <!-- VISTA 2: PIANO (TECLAS) -->
         <div id="piano-view">
             <div id="piano-keyboard">
-                <!-- Se generará con JS para precisión -->
+                <!-- Se generará con JS -->
             </div>
         </div>
 
@@ -405,321 +421,297 @@
     </footer>
 
     <script>
-        // --- CONFIGURACIÓN DE NOTAS ---
-        const noteFrequencies = {};
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        
-        // Generar frecuencias desde C3 hasta C6
-        function generateFrequencies() {
-            for (let i = 48; i <= 84; i++) {
-                const octave = Math.floor(i / 12) - 1;
-                const noteName = noteNames[i % 12];
-                const label = `${noteName}${octave}`;
-                const frequency = 440 * Math.pow(2, (i - 69) / 12);
-                noteFrequencies[label] = frequency;
+        // Esperar a que todo el HTML cargue antes de ejecutar scripts
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 0. ELIMINAR PANTALLA DE CARGA ---
+            const loadingScreen = document.getElementById('loading-screen');
+            if(loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 500);
             }
-        }
-        generateFrequencies();
 
-        // Mapa de asignación actual (Makey View)
-        const currentMapping = {
-            'ArrowUp': 'C4', 'ArrowDown': 'D4', 'ArrowLeft': 'E4', 'ArrowRight': 'F4',
-            'w': 'C5', 'a': 'G4', 's': 'A4', 'd': 'B4', 'f': 'D5', 'g': 'E5',
-            ' ': 'F5', 'Click': 'G5'
-        };
-
-        // --- GESTIÓN DE VISTAS ---
-        let currentView = 'makey'; // 'makey' o 'piano'
-
-        function toggleView() {
-            const makeyDiv = document.getElementById('makey-view');
-            const pianoDiv = document.getElementById('piano-view');
-            const btn = document.getElementById('view-toggle-btn');
-
-            if (currentView === 'makey') {
-                makeyDiv.classList.add('hidden');
-                pianoDiv.style.display = 'flex'; // Necesario para flex layout
-                btn.innerText = "🎮 Cambiar a Modo Makey";
-                currentView = 'piano';
-            } else {
-                pianoDiv.style.display = 'none';
-                makeyDiv.classList.remove('hidden');
-                btn.innerText = "🎹 Cambiar a Modo Piano";
-                currentView = 'makey';
-            }
-        }
-
-        // --- GENERADOR DE PIANO ---
-        function renderPiano() {
-            const container = document.getElementById('piano-keyboard');
-            container.innerHTML = '';
-
-            // Definir rango del piano: C4 a G5 (1.5 octavas aprox)
-            // Secuencia de notas cromáticas
-            const startMidi = 60; // C4
-            const endMidi = 79;   // G5
-
-            let whiteKeyCount = 0;
-
-            for (let i = startMidi; i <= endMidi; i++) {
-                const octave = Math.floor(i / 12) - 1;
-                const noteNameRaw = noteNames[i % 12];
-                const noteLabel = `${noteNameRaw}${octave}`;
-                const isBlack = noteNameRaw.includes('#');
-
-                if (!isBlack) {
-                    // Tecla Blanca
-                    const key = document.createElement('div');
-                    key.className = 'piano-key white-key';
-                    key.setAttribute('data-note-piano', noteLabel);
-                    key.innerText = noteNameRaw; // Mostrar C, D, E...
-                    container.appendChild(key);
-                    whiteKeyCount++;
-                } else {
-                    // Tecla Negra
-                    // Calcular posición basada en la última tecla blanca
-                    // Ancho tecla blanca = 60px.
-                    // Posición = (WhiteKeys * 60) - (BlackWidth / 2)
-                    const key = document.createElement('div');
-                    key.className = 'piano-key black-key';
-                    key.setAttribute('data-note-piano', noteLabel);
-                    
-                    // Cálculo de posición CSS
-                    const leftPos = (whiteKeyCount * 60) - 18; // 18 es mitad de 36px (ancho negra)
-                    key.style.left = `${leftPos}px`;
-                    
-                    container.appendChild(key);
+            // --- 1. CONFIGURACIÓN DE NOTAS ---
+            const noteFrequencies = {};
+            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            
+            function generateFrequencies() {
+                for (let i = 48; i <= 84; i++) {
+                    const octave = Math.floor(i / 12) - 1;
+                    const noteName = noteNames[i % 12];
+                    const label = `${noteName}${octave}`;
+                    const frequency = 440 * Math.pow(2, (i - 69) / 12);
+                    noteFrequencies[label] = frequency;
                 }
             }
-        }
-        renderPiano();
+            generateFrequencies();
 
+            const currentMapping = {
+                'ArrowUp': 'C4', 'ArrowDown': 'D4', 'ArrowLeft': 'E4', 'ArrowRight': 'F4',
+                'w': 'C5', 'a': 'G4', 's': 'A4', 'd': 'B4', 'f': 'D5', 'g': 'E5',
+                ' ': 'F5', 'Click': 'G5'
+            };
 
-        // --- INICIALIZAR UI MAKEY ---
-        function initUI() {
-            const selects = document.querySelectorAll('.note-select');
-            selects.forEach(select => {
-                const targetKey = select.getAttribute('data-target');
-                Object.keys(noteFrequencies).forEach(noteLabel => {
-                    const option = document.createElement('option');
-                    option.value = noteLabel;
-                    option.text = noteLabel;
-                    if (noteLabel === currentMapping[targetKey]) option.selected = true;
-                    select.appendChild(option);
+            // --- 2. GESTIÓN DE VISTAS (Makey vs Piano) ---
+            window.toggleView = function() { // Hacer global para que el onclick del HTML funcione
+                const makeyDiv = document.getElementById('makey-view');
+                const pianoDiv = document.getElementById('piano-view');
+                const btn = document.getElementById('view-toggle-btn');
+                
+                // Determinar estado actual basado en visibilidad
+                const isPianoVisible = pianoDiv.style.display === 'flex';
+
+                if (!isPianoVisible) {
+                    makeyDiv.classList.add('hidden');
+                    pianoDiv.style.display = 'flex';
+                    btn.innerText = "🎮 Cambiar a Modo Makey";
+                } else {
+                    pianoDiv.style.display = 'none';
+                    makeyDiv.classList.remove('hidden');
+                    btn.innerText = "🎹 Cambiar a Modo Piano";
+                }
+            };
+
+            // --- 3. RENDER PIANO ---
+            function renderPiano() {
+                const container = document.getElementById('piano-keyboard');
+                container.innerHTML = '';
+                const startMidi = 60; // C4
+                const endMidi = 79;   // G5
+                let whiteKeyCount = 0;
+
+                for (let i = startMidi; i <= endMidi; i++) {
+                    const octave = Math.floor(i / 12) - 1;
+                    const noteNameRaw = noteNames[i % 12];
+                    const noteLabel = `${noteNameRaw}${octave}`;
+                    const isBlack = noteNameRaw.includes('#');
+
+                    if (!isBlack) {
+                        const key = document.createElement('div');
+                        key.className = 'piano-key white-key';
+                        key.setAttribute('data-note-piano', noteLabel);
+                        key.innerText = noteNameRaw;
+                        container.appendChild(key);
+                        whiteKeyCount++;
+                    } else {
+                        const key = document.createElement('div');
+                        key.className = 'piano-key black-key';
+                        key.setAttribute('data-note-piano', noteLabel);
+                        const leftPos = (whiteKeyCount * 60) - 18;
+                        key.style.left = `${leftPos}px`;
+                        container.appendChild(key);
+                    }
+                }
+            }
+            renderPiano();
+
+            // --- 4. INICIALIZAR UI (Selectores) ---
+            function initUI() {
+                const selects = document.querySelectorAll('.note-select');
+                selects.forEach(select => {
+                    const targetKey = select.getAttribute('data-target');
+                    Object.keys(noteFrequencies).forEach(noteLabel => {
+                        const option = document.createElement('option');
+                        option.value = noteLabel;
+                        option.text = noteLabel;
+                        if (noteLabel === currentMapping[targetKey]) option.selected = true;
+                        select.appendChild(option);
+                    });
+                    select.addEventListener('change', (e) => {
+                        currentMapping[targetKey] = e.target.value;
+                        select.blur();
+                    });
+                    select.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+                    select.addEventListener('mousedown', (e) => e.stopPropagation());
                 });
-                select.addEventListener('change', (e) => {
-                    currentMapping[targetKey] = e.target.value;
-                    select.blur();
-                });
-                select.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
-                select.addEventListener('mousedown', (e) => e.stopPropagation());
+            }
+            initUI();
+
+            // --- 5. MOTOR DE AUDIO ---
+            let audioCtx;
+            let isAudioStarted = false;
+            const activeOscillators = {};
+
+            const startBtn = document.getElementById('start-audio-btn');
+            
+            startBtn.addEventListener('click', async () => {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                }
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                isAudioStarted = true;
+                startBtn.textContent = "🔊 SONIDO ACTIVO";
+                startBtn.style.backgroundColor = "#00ff9d";
+                startBtn.style.animation = "none";
+                startBtn.style.color = "#000";
             });
-        }
-        initUI();
 
-        // --- MOTOR DE AUDIO ---
-        let audioCtx;
-        let isAudioStarted = false;
-        const activeOscillators = {}; // Guarda { osc, gainNode } por ID
+            function playTone(identifier, explicitNote = null) {
+                if (!isAudioStarted || !audioCtx) return;
 
-        const startBtn = document.getElementById('start-audio-btn');
-        
-        startBtn.addEventListener('click', async () => {
-            if (!audioCtx) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
+                let noteName;
+                if (explicitNote) {
+                    noteName = explicitNote;
+                } else {
+                    noteName = currentMapping[identifier];
+                }
+
+                if (!noteName || !noteFrequencies[noteName]) return;
+                if (activeOscillators[identifier]) return;
+
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                const waveform = document.getElementById('waveform').value;
+                osc.type = waveform;
+                osc.frequency.value = noteFrequencies[noteName];
+
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start();
+
+                activeOscillators[identifier] = { osc, gainNode };
             }
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+            function stopTone(identifier) {
+                const activeNote = activeOscillators[identifier];
+                if (activeNote) {
+                    const { osc, gainNode } = activeNote;
+                    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    osc.stop(audioCtx.currentTime + 0.1);
+                    delete activeOscillators[identifier];
+                }
+            }
+
+            // --- 6. EVENTOS DE ENTRADA ---
             
-            isAudioStarted = true;
-            startBtn.textContent = "🔊 SONIDO ACTIVO";
-            startBtn.style.backgroundColor = "#00ff9d";
-            startBtn.style.animation = "none";
-            startBtn.style.color = "#000";
-        });
-
-        // Función unificada para tocar
-        // identifier: ID de la tecla (ej: 'ArrowUp') O nombre de la nota (ej: 'C#4')
-        // explicitNote: Opcional, fuerza una nota específica (usado por el piano)
-        function playTone(identifier, explicitNote = null) {
-            if (!isAudioStarted || !audioCtx) return;
-
-            // Determinar qué nota tocar
-            let noteName;
-            if (explicitNote) {
-                noteName = explicitNote;
-            } else {
-                // Modo Makey: buscar en mapa
-                noteName = currentMapping[identifier];
-            }
-
-            if (!noteName || !noteFrequencies[noteName]) return;
-
-            // Evitar duplicados (ID único por tecla física/virtual)
-            if (activeOscillators[identifier]) return;
-
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-
-            const waveform = document.getElementById('waveform').value;
-            osc.type = waveform;
-            osc.frequency.value = noteFrequencies[noteName];
-
-            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            osc.start();
-
-            activeOscillators[identifier] = { osc, gainNode };
-        }
-
-        function stopTone(identifier) {
-            const activeNote = activeOscillators[identifier];
-            if (activeNote) {
-                const { osc, gainNode } = activeNote;
-                gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-                osc.stop(audioCtx.currentTime + 0.1);
-                
-                delete activeOscillators[identifier];
-            }
-        }
-
-        // --- EVENTOS DE ENTRADA (MAKEY MAKEY / TECLADO) ---
-        document.addEventListener('keydown', (e) => {
-            if (currentView !== 'makey') return; // Solo funciona en vista makey
-            if (e.target.tagName === 'SELECT') return;
-
-            let key = e.key;
-            if (key === ' ') key = ' ';
-            if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
-
-            if (currentMapping.hasOwnProperty(key)) {
-                highlightKey(key, true);
-                playTone(key);
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (currentView !== 'makey') return;
-            let key = e.key;
-            if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
-
-            if (currentMapping.hasOwnProperty(key)) {
-                highlightKey(key, false);
-                stopTone(key);
-            }
-        });
-
-        // --- EVENTOS TÁCTILES (PADS MAKEY) ---
-        const pads = document.querySelectorAll('.key-pad');
-        pads.forEach(pad => {
-            const keyId = pad.getAttribute('data-key');
-            
-            const startPad = (e) => {
-                if (currentView !== 'makey') return;
+            // Teclado Físico
+            document.addEventListener('keydown', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
                 if (e.target.tagName === 'SELECT') return;
-                if (e.cancelable) e.preventDefault();
-                pad.classList.add('active');
-                playTone(keyId);
-            };
-            const endPad = (e) => {
-                if (currentView !== 'makey') return;
-                if (e.target.tagName === 'SELECT') return;
-                if (e.cancelable) e.preventDefault();
-                pad.classList.remove('active');
-                stopTone(keyId);
-            };
 
-            pad.addEventListener('touchstart', startPad, { passive: false });
-            pad.addEventListener('touchend', endPad, { passive: false });
-            pad.addEventListener('mousedown', startPad);
-            pad.addEventListener('mouseup', endPad);
-            pad.addEventListener('mouseleave', endPad);
-        });
+                let key = e.key;
+                if (key === ' ') key = ' ';
+                if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
 
-        // --- EVENTOS TÁCTILES (TECLAS PIANO) ---
-        // Usamos delegación de eventos en el contenedor para mejor rendimiento
-        const pianoContainer = document.getElementById('piano-keyboard');
-        
-        // Helper para obtener nota de tecla piano
-        function getPianoNote(target) {
-            return target.getAttribute('data-note-piano');
-        }
+                if (currentMapping.hasOwnProperty(key)) {
+                    highlightKey(key, true);
+                    playTone(key);
+                }
+            });
 
-        // Mapeamos punteros (touch/mouse) a notas activas para soportar multitoque
-        const activePointers = new Map(); // Map<PointerId, NoteLabel>
+            document.addEventListener('keyup', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
+                let key = e.key;
+                if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
 
-        pianoContainer.addEventListener('pointerdown', (e) => {
-            if (e.target.classList.contains('piano-key')) {
-                e.preventDefault();
-                const note = getPianoNote(e.target);
-                // Usamos la nota como ID también para evitar duplicados del mismo tono
-                // Pero el ID del oscilador será "PIANO_" + nota para no chocar con Makey
-                const id = "PIANO_" + note;
-                
-                playTone(id, note);
-                e.target.classList.add('active');
-                activePointers.set(e.pointerId, { id, el: e.target });
-                pianoContainer.setPointerCapture(e.pointerId);
+                if (currentMapping.hasOwnProperty(key)) {
+                    highlightKey(key, false);
+                    stopTone(key);
+                }
+            });
+
+            // Touch en Pads Makey
+            const pads = document.querySelectorAll('.key-pad');
+            pads.forEach(pad => {
+                const keyId = pad.getAttribute('data-key');
+                const startPad = (e) => {
+                    if (document.getElementById('piano-view').style.display === 'flex') return;
+                    if (e.target.tagName === 'SELECT') return;
+                    if (e.cancelable) e.preventDefault();
+                    pad.classList.add('active');
+                    playTone(keyId);
+                };
+                const endPad = (e) => {
+                    if (document.getElementById('piano-view').style.display === 'flex') return;
+                    if (e.target.tagName === 'SELECT') return;
+                    if (e.cancelable) e.preventDefault();
+                    pad.classList.remove('active');
+                    stopTone(keyId);
+                };
+                pad.addEventListener('touchstart', startPad, { passive: false });
+                pad.addEventListener('touchend', endPad, { passive: false });
+                pad.addEventListener('mousedown', startPad);
+                pad.addEventListener('mouseup', endPad);
+                pad.addEventListener('mouseleave', endPad);
+            });
+
+            // Touch en Piano
+            const pianoContainer = document.getElementById('piano-keyboard');
+            const activePointers = new Map();
+
+            pianoContainer.addEventListener('pointerdown', (e) => {
+                if (e.target.classList.contains('piano-key')) {
+                    e.preventDefault();
+                    const note = e.target.getAttribute('data-note-piano');
+                    const id = "PIANO_" + note;
+                    
+                    playTone(id, note);
+                    e.target.classList.add('active');
+                    activePointers.set(e.pointerId, { id, el: e.target });
+                    pianoContainer.setPointerCapture(e.pointerId);
+                }
+            });
+
+            pianoContainer.addEventListener('pointerup', (e) => {
+                if (activePointers.has(e.pointerId)) {
+                    e.preventDefault();
+                    const { id, el } = activePointers.get(e.pointerId);
+                    stopTone(id);
+                    el.classList.remove('active');
+                    activePointers.delete(e.pointerId);
+                }
+            });
+
+            pianoContainer.addEventListener('pointercancel', (e) => {
+                if (activePointers.has(e.pointerId)) {
+                    const { id, el } = activePointers.get(e.pointerId);
+                    stopTone(id);
+                    el.classList.remove('active');
+                    activePointers.delete(e.pointerId);
+                }
+            });
+
+            // Click global Makey
+            document.addEventListener('mousedown', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
+                if (!e.target.closest('.key-pad') && 
+                    e.target.tagName !== 'BUTTON' && 
+                    e.target.tagName !== 'SELECT' && 
+                    e.target.tagName !== 'OPTION') {
+                    
+                    highlightKey('Click', true);
+                    playTone('Click');
+                }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
+                if (!e.target.closest('.key-pad')) {
+                    highlightKey('Click', false);
+                    stopTone('Click');
+                }
+            });
+
+            function highlightKey(key, isActive) {
+                let selector = `.key-pad[data-key="${key}"]`;
+                if (key === ' ') selector = `.key-pad[data-key=" "]`;
+                const el = document.querySelector(selector);
+                if (el) {
+                    if (isActive) el.classList.add('active');
+                    else el.classList.remove('active');
+                }
             }
-        });
 
-        pianoContainer.addEventListener('pointerup', (e) => {
-            if (activePointers.has(e.pointerId)) {
-                e.preventDefault();
-                const { id, el } = activePointers.get(e.pointerId);
-                stopTone(id);
-                el.classList.remove('active');
-                activePointers.delete(e.pointerId);
-            }
-        });
-
-        pianoContainer.addEventListener('pointercancel', (e) => {
-            if (activePointers.has(e.pointerId)) {
-                const { id, el } = activePointers.get(e.pointerId);
-                stopTone(id);
-                el.classList.remove('active');
-                activePointers.delete(e.pointerId);
-            }
-        });
-
-        // --- CLICK GLOBAL MAKEY (Solo en vista Makey) ---
-        document.addEventListener('mousedown', (e) => {
-            if (currentView !== 'makey') return;
-            if (!e.target.closest('.key-pad') && 
-                !e.target.closest('#piano-view') &&
-                e.target.tagName !== 'BUTTON' && 
-                e.target.tagName !== 'SELECT' && 
-                e.target.tagName !== 'OPTION') {
-                
-                highlightKey('Click', true);
-                playTone('Click');
-            }
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            if (currentView !== 'makey') return;
-            if (!e.target.closest('.key-pad')) {
-                highlightKey('Click', false);
-                stopTone('Click');
-            }
-        });
-
-        function highlightKey(key, isActive) {
-            let selector = `.key-pad[data-key="${key}"]`;
-            if (key === ' ') selector = `.key-pad[data-key=" "]`;
-            const el = document.querySelector(selector);
-            if (el) {
-                if (isActive) el.classList.add('active');
-                else el.classList.remove('active');
-            }
-        }
-
+        }); // End DOMContentLoaded
     </script>
 </body>
 </html>
