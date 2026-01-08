@@ -14,9 +14,13 @@
             --key-active: #00d2ff;
             --piano-white: #fffff0;
             --piano-black: #111;
-            /* Variables dinámicas para el piano responsivo */
             --white-key-count: 12; 
-            --black-key-width-percent: 6%; /* Ancho relativo de tecla negra */
+            --black-key-width-percent: 6%;
+        }
+
+        /* RESET GLOBAL IMPORTANTE */
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -26,7 +30,7 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            height: 100vh; /* Altura fija viewport */
             touch-action: pan-x pan-y;
             -webkit-user-select: none;
             user-select: none;
@@ -35,6 +39,703 @@
 
         /* Pantalla de Carga */
         #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: var(--accent-color);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: opacity 0.5s ease;
+        }
+
+        header {
+            background-color: var(--panel-color);
+            padding: 10px;
+            text-align: center;
+            border-bottom: 2px solid #333;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .top-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #start-audio-btn {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.4);
+            animation: pulse 2s infinite;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        #view-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #view-toggle-btn:active {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .sound-controls {
+            background: #222;
+            padding: 5px 10px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 5px;
+            justify-content: center;
+        }
+
+        select.waveform-select {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        main {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- VISTA MAKEY --- */
+        #makey-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 10px;
+            gap: 15px;
+            overflow-y: auto;
+            height: 100%;
+            width: 100%;
+        }
+
+        .d-pad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .linear-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            max-width: 100%;
+        }
+
+        .key-pad {
+            width: 80px;
+            height: 80px;
+            background-color: var(--key-inactive);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.05s, background-color 0.1s;
+            border: 1px solid #333;
+            position: relative;
+        }
+
+        .key-pad.active {
+            background-color: var(--key-active);
+            color: #000;
+            transform: scale(0.95);
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        .key-pad.active .note-select {
+            color: #000;
+            border-color: #000;
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .key-icon {
+            font-size: 1.4rem;
+            font-weight: bold;
+            pointer-events: none;
+            margin-bottom: 2px;
+        }
+
+        .note-select {
+            width: 90%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #444;
+            color: #ccc;
+            font-size: 0.65rem;
+            text-align: center;
+            border-radius: 4px;
+            padding: 2px 0;
+            margin-top: 2px;
+            appearance: none;
+            -webkit-appearance: none;
+            text-align-last: center;
+        }
+
+        .arrow-up { grid-column: 2; grid-row: 1; }
+        .arrow-left { grid-column: 1; grid-row: 2; }
+        .arrow-down { grid-column: 2; grid-row: 2; }
+        .arrow-right { grid-column: 3; grid-row: 2; }
+        .key-pad.wide { width: 170px; }
+
+        /* --- VISTA PIANO --- */
+        #piano-view {
+            display: none;
+            /* Estilos por defecto (Vertical) */
+            height: 100%;
+            width: 100%;
+            background: #111;
+            position: relative;
+            align-items: center; 
+            justify-content: flex-start;
+            overflow-x: auto; 
+            overflow-y: hidden;
+            padding: 20px 0;
+            z-index: 50;
+        }
+
+        #piano-keyboard {
+            position: relative;
+            height: 250px;
+            margin: 0 20px;
+            display: flex;
+            flex-shrink: 0;
+        }
+
+        .piano-key {
+            position: relative;
+            border-radius: 0 0 4px 4px;
+            cursor: pointer;
+            transition: background-color 0.1s, transform 0.05s;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .white-key {
+            width: 60px;
+            height: 100%;
+            background-color: var(--piano-white);
+            border: 1px solid #999;
+            color: #333;
+            z-index: 1;
+            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+        }
+
+        .white-key.active {
+            background: linear-gradient(to bottom, #fff 0%, var(--accent-color) 100%);
+            transform: translateY(2px);
+        }
+
+        .black-key {
+            width: 36px;
+            height: 60%;
+            background-color: var(--piano-black);
+            color: white;
+            z-index: 2;
+            position: absolute;
+            top: 0;
+            box-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+            border-radius: 0 0 3px 3px;
+        }
+
+        .black-key.active {
+            background: linear-gradient(to bottom, #222 0%, var(--accent-color) 100%);
+        }
+
+        /* Botón Salir Fullscreen */
+        #exit-fullscreen-btn {
+            display: none;
+            position: absolute;
+            top: 15px; /* Más espacio para evitar notch */
+            right: 15px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 44px; /* Más grande para dedo */
+            height: 44px;
+            font-size: 1.2rem;
+            z-index: 9999;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        /* --- ARREGLO BLINDADO PARA LANDSCAPE --- */
+        @media screen and (orientation: landscape) {
+            
+            /* Cuando estamos en modo piano, forzamos overlay fijo */
+            body.piano-mode-active #piano-view {
+                position: fixed; /* Clave: sacar del flujo */
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                background: #000;
+                z-index: 5000; /* Encima de todo */
+                display: flex;
+                align-items: center; 
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            body.piano-mode-active #piano-keyboard {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            /* Teclas Blancas Elásticas */
+            body.piano-mode-active .white-key {
+                width: auto !important;
+                flex: 1;
+                border-radius: 0 0 8px 8px;
+            }
+
+            /* Teclas Negras Elásticas */
+            body.piano-mode-active .black-key {
+                width: var(--black-key-width-percent);
+                left: calc( ((100% / var(--white-key-count)) * (var(--prev-white-index) + 1)) - (var(--black-key-width-percent) / 2) );
+                height: 60%;
+            }
+
+            /* Mostrar botón de salida encima del overlay */
+            body.piano-mode-active #exit-fullscreen-btn {
+                display: flex;
+            }
+        }
+
+        .hidden { display: none !important; }
+
+        footer {
+            background-color: #111;
+            color: #555;
+            text-align: center;
+            padding: 10px;
+            font-size: 0.7rem;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div>🌱 Brotes Musicales</div>
+        <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Cargando...</div>
+    </div>
+
+    <header id="main-header">
+        <h1>Brotes Synth</h1>
+        <div class="subtitle">Sintetizador Web para Móvil</div>
+        
+        <div class="top-controls">
+            <button id="start-audio-btn">🔊 TOCAR PARA ACTIVAR SONIDO</button>
+            <button id="view-toggle-btn" onclick="toggleView()">🎹 Cambiar a Modo Piano</button>
+        </div>
+        
+        <div class="sound-controls">
+            <label style="font-size: 0.8rem; color: #aaa;">Sonido:</label>
+            <select id="waveform" class="waveform-select">
+                <option value="sine">Suave (Sine)</option>
+                <option value="triangle" selected>Flauta (Triangle)</option>
+                <option value="square">Retro (Square)</option>
+                <option value="sawtooth">Intenso (Saw)</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <!-- VISTA MAKEY -->
+        <div id="makey-view">
+            <div class="d-pad-grid">
+                <div class="key-pad arrow-up" data-key="ArrowUp"><div class="key-icon">↑</div><select class="note-select" data-target="ArrowUp"></select></div>
+                <div class="key-pad arrow-left" data-key="ArrowLeft"><div class="key-icon">←</div><select class="note-select" data-target="ArrowLeft"></select></div>
+                <div class="key-pad arrow-down" data-key="ArrowDown"><div class="key-icon">↓</div><select class="note-select" data-target="ArrowDown"></select></div>
+                <div class="key-pad arrow-right" data-key="ArrowRight"><div class="key-icon">→</div><select class="note-select" data-target="ArrowRight"></select></div>
+            </div>
+            <div class="linear-grid">
+                <div class="key-pad" data-key="w"><div class="key-icon">W</div><select class="note-select" data-target="w"></select></div>
+                <div class="key-pad" data-key="a"><div class="key-icon">A</div><select class="note-select" data-target="a"></select></div>
+                <div class="key-pad" data-key="s"><div class="key-icon">S</div><select class="note-select" data-target="s"></select></div>
+                <div class="key-pad" data-key="d"><div class="key-icon">D</div><select class="note-select" data-target="d"></select></div>
+                <div class="key-pad" data-key="f"><div class="key-icon">F</div><select class="note-select" data-target="f"></select></div>
+                <div class="key-pad" data-key="g"><div class="key-icon">G</div><select class="note-select" data-target="g"></select></div>
+            </div>
+            <div class="linear-grid">
+                <div class="key-pad wide" data-key=" "><div class="key-icon">Espacio</div><select class="note-select" data-target=" "></select></div>
+            </div>
+        </div>
+
+        <!-- VISTA PIANO -->
+        <div id="piano-view">
+            <button id="exit-fullscreen-btn" onclick="toggleView()" title="Salir">✕</button>
+            <div id="piano-keyboard">
+                <!-- Se generará con JS -->
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        Creado por Manuel Puebla - Brotes Musicales
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- ELIMINAR CARGA ---
+            const loadingScreen = document.getElementById('loading-screen');
+            if(loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 500);
+            }
+
+            // --- VARIABLES MUSICALES ---
+            const noteFrequencies = {};
+            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            
+            function generateFrequencies() {
+                for (let i = 48; i <= 84; i++) {
+                    const octave = Math.floor(i / 12) - 1;
+                    const noteName = noteNames[i % 12];
+                    const label = `${noteName}${octave}`;
+                    const frequency = 440 * Math.pow(2, (i - 69) / 12);
+                    noteFrequencies[label] = frequency;
+                }
+            }
+            generateFrequencies();
+
+            const currentMapping = {
+                'ArrowUp': 'C4', 'ArrowDown': 'D4', 'ArrowLeft': 'E4', 'ArrowRight': 'F4',
+                'w': 'C5', 'a': 'G4', 's': 'A4', 'd': 'B4', 'f': 'D5', 'g': 'E5',
+                ' ': 'F5'
+            };
+
+            // --- GESTIÓN DE VISTAS (Y CLASE PARA CSS LANDSCAPE) ---
+            window.toggleView = function() { 
+                const makeyDiv = document.getElementById('makey-view');
+                const pianoDiv = document.getElementById('piano-view');
+                const btn = document.getElementById('view-toggle-btn');
+                
+                const isPianoVisible = pianoDiv.style.display === 'flex';
+
+                if (!isPianoVisible) {
+                    // ACTIVAR MODO PIANO
+                    makeyDiv.classList.add('hidden');
+                    pianoDiv.style.display = 'flex';
+                    btn.innerText = "🎮 Cambiar a Modo Makey";
+                    document.body.classList.add('piano-mode-active');
+                } else {
+                    // VOLVER A MODO MAKEY
+                    pianoDiv.style.display = 'none';
+                    makeyDiv.classList.remove('hidden');
+                    btn.innerText = "🎹 Cambiar a Modo Piano";
+                    document.body.classList.remove('piano-mode-active');
+                }
+            };
+
+            // --- RENDER PIANO RESPONSIVO ---
+            function renderPiano() {
+                const container = document.getElementById('piano-keyboard');
+                container.innerHTML = '';
+                const startMidi = 60; // C4
+                const endMidi = 79;   // G5
+                let whiteKeyCount = 0;
+
+                // 1. Contar primero las teclas blancas para CSS
+                for (let i = startMidi; i <= endMidi; i++) {
+                    const noteNameRaw = noteNames[i % 12];
+                    if (!noteNameRaw.includes('#')) whiteKeyCount++;
+                }
+                
+                container.style.setProperty('--white-key-count', whiteKeyCount);
+
+                // 2. Generar Teclas
+                let currentWhiteIndex = -1; 
+
+                for (let i = startMidi; i <= endMidi; i++) {
+                    const octave = Math.floor(i / 12) - 1;
+                    const noteNameRaw = noteNames[i % 12];
+                    const noteLabel = `${noteNameRaw}${octave}`;
+                    const isBlack = noteNameRaw.includes('#');
+
+                    if (!isBlack) {
+                        currentWhiteIndex++;
+                        const key = document.createElement('div');
+                        key.className = 'piano-key white-key';
+                        key.setAttribute('data-note-piano', noteLabel);
+                        key.innerText = noteNameRaw;
+                        container.appendChild(key);
+                    } else {
+                        const key = document.createElement('div');
+                        key.className = 'piano-key black-key';
+                        key.setAttribute('data-note-piano', noteLabel);
+                        
+                        // Posición Vertical (Fallback)
+                        const leftPosPx = ((currentWhiteIndex + 1) * 60) - 18;
+                        key.style.left = `${leftPosPx}px`;
+
+                        // Posición Horizontal (Variable CSS)
+                        key.style.setProperty('--prev-white-index', currentWhiteIndex);
+                        
+                        container.appendChild(key);
+                    }
+                }
+            }
+            renderPiano();
+
+            // --- UI SELECTORES ---
+            function initUI() {
+                const selects = document.querySelectorAll('.note-select');
+                selects.forEach(select => {
+                    const targetKey = select.getAttribute('data-target');
+                    Object.keys(noteFrequencies).forEach(noteLabel => {
+                        const option = document.createElement('option');
+                        option.value = noteLabel;
+                        option.text = noteLabel;
+                        if (noteLabel === currentMapping[targetKey]) option.selected = true;
+                        select.appendChild(option);
+                    });
+                    select.addEventListener('change', (e) => {
+                        currentMapping[targetKey] = e.target.value;
+                        select.blur();
+                    });
+                    select.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
+                    select.addEventListener('mousedown', (e) => e.stopPropagation());
+                });
+            }
+            initUI();
+
+            // --- AUDIO ENGINE ---
+            let audioCtx;
+            let isAudioStarted = false;
+            const activeOscillators = {};
+
+            const startBtn = document.getElementById('start-audio-btn');
+            
+            startBtn.addEventListener('click', async () => {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                }
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                isAudioStarted = true;
+                startBtn.textContent = "🔊 SONIDO ACTIVO";
+                startBtn.style.backgroundColor = "#00ff9d";
+                startBtn.style.animation = "none";
+                startBtn.style.color = "#000";
+            });
+
+            function playTone(identifier, explicitNote = null) {
+                if (!isAudioStarted || !audioCtx) return;
+
+                let noteName;
+                if (explicitNote) {
+                    noteName = explicitNote;
+                } else {
+                    noteName = currentMapping[identifier];
+                }
+
+                if (!noteName || !noteFrequencies[noteName]) return;
+                if (activeOscillators[identifier]) return;
+
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                const waveform = document.getElementById('waveform').value;
+                osc.type = waveform;
+                osc.frequency.value = noteFrequencies[noteName];
+
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start();
+
+                activeOscillators[identifier] = { osc, gainNode };
+            }
+
+            function stopTone(identifier) {
+                const activeNote = activeOscillators[identifier];
+                if (activeNote) {
+                    const { osc, gainNode } = activeNote;
+                    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    osc.stop(audioCtx.currentTime + 0.1);
+                    delete activeOscillators[identifier];
+                }
+            }
+
+            // --- INPUT HANDLERS ---
+            
+            // Teclado
+            document.addEventListener('keydown', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
+                if (e.target.tagName === 'SELECT') return;
+                let key = e.key;
+                if (key === ' ') key = ' ';
+                if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
+                if (currentMapping.hasOwnProperty(key)) {
+                    highlightKey(key, true);
+                    playTone(key);
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (document.getElementById('piano-view').style.display === 'flex') return;
+                let key = e.key;
+                if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
+                if (currentMapping.hasOwnProperty(key)) {
+                    highlightKey(key, false);
+                    stopTone(key);
+                }
+            });
+
+            // Touch Pads
+            const pads = document.querySelectorAll('.key-pad');
+            pads.forEach(pad => {
+                const keyId = pad.getAttribute('data-key');
+                const startPad = (e) => {
+                    if (document.getElementById('piano-view').style.display === 'flex') return;
+                    if (e.target.tagName === 'SELECT') return;
+                    if (e.cancelable) e.preventDefault();
+                    pad.classList.add('active');
+                    playTone(keyId);
+                };
+                const endPad = (e) => {
+                    if (document.getElementById('piano-view').style.display === 'flex') return;
+                    if (e.target.tagName === 'SELECT') return;
+                    if (e.cancelable) e.preventDefault();
+                    pad.classList.remove('active');
+                    stopTone(keyId);
+                };
+                pad.addEventListener('touchstart', startPad, { passive: false });
+                pad.addEventListener('touchend', endPad, { passive: false });
+                pad.addEventListener('mousedown', startPad);
+                pad.addEventListener('mouseup', endPad);
+                pad.addEventListener('mouseleave', endPad);
+            });
+
+            // Touch Piano
+            const pianoContainer = document.getElementById('piano-keyboard');
+            const activePointers = new Map();
+
+            pianoContainer.addEventListener('pointerdown', (e) => {
+                if (e.target.classList.contains('piano-key')) {
+                    e.preventDefault();
+                    const note = e.target.getAttribute('data-note-piano');
+                    const id = "PIANO_" + note;
+                    playTone(id, note);
+                    e.target.classList.add('active');
+                    activePointers.set(e.pointerId, { id, el: e.target });
+                    pianoContainer.setPointerCapture(e.pointerId);
+                }
+            });
+
+            pianoContainer.addEventListener('pointerup', (e) => {
+                if (activePointers.has(e.pointerId)) {
+                    e.preventDefault();
+                    const { id, el } = activePointers.get(e.pointerId);
+                    stopTone(id);
+                    el.classList.remove('active');
+                    activePointers.delete(e.pointerId);
+                }
+            });
+
+            pianoContainer.addEventListener('pointercancel', (e) => {
+                if (activePointers.has(e.pointerId)) {
+                    const { id, el } = activePointers.get(e.pointerId);
+                    stopTone(id);
+                    el.classList.remove('active');
+                    activePointers.delete(e.pointerId);
+                }
+            });
+
+            function highlightKey(key, isActive) {
+                let selector = `.key-pad[data-key="${key}"]`;
+                if (key === ' ') selector = `.key-pad[data-key=" "]`;
+                const el = document.querySelector(selector);
+                if (el) {
+                    if (isActive) el.classList.add('active');
+                    else el.classList.remove('active');
+                }
+            }
+
+        }); 
+    </script>
+</body>
+</html>        #loading-screen {
             position: fixed;
             top: 0;
             left: 0;
