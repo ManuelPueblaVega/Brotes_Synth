@@ -14,6 +14,9 @@
             --key-active: #00d2ff;
             --piano-white: #fffff0;
             --piano-black: #111;
+            /* Variables dinámicas para el piano responsivo */
+            --white-key-count: 12; 
+            --black-key-width-percent: 6%; /* Ancho relativo de tecla negra */
         }
 
         body {
@@ -30,7 +33,7 @@
             overflow: hidden;
         }
 
-        /* Pantalla de Carga para Diagnóstico */
+        /* Pantalla de Carga */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -55,6 +58,7 @@
             border-bottom: 2px solid #333;
             flex-shrink: 0;
             z-index: 10;
+            transition: transform 0.3s ease;
         }
 
         h1 {
@@ -142,9 +146,11 @@
             position: relative;
             width: 100%;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* VISTA MAKEY */
+        /* --- VISTA MAKEY --- */
         #makey-view {
             display: flex;
             flex-direction: column;
@@ -230,17 +236,18 @@
         .arrow-right { grid-column: 3; grid-row: 2; }
         .key-pad.wide { width: 170px; }
 
-        /* VISTA PIANO */
+        /* --- VISTA PIANO --- */
         #piano-view {
             display: none;
             height: 100%;
             width: 100%;
-            align-items: center;
-            justify-content: flex-start;
-            overflow-x: auto;
-            overflow-y: hidden;
-            background: #000;
+            background: #111;
             position: relative;
+            /* Por defecto: centrado y con scroll si es necesario (modo vertical) */
+            align-items: center; 
+            justify-content: flex-start;
+            overflow-x: auto; 
+            overflow-y: hidden;
             padding: 20px 0;
         }
 
@@ -249,9 +256,10 @@
             height: 250px;
             margin: 0 20px;
             display: flex;
-            flex-shrink: 0; 
+            flex-shrink: 0; /* No encoger en modo normal */
         }
 
+        /* Estilos base de teclas (Modo Vertical / Desktop) */
         .piano-key {
             position: relative;
             border-radius: 0 0 4px 4px;
@@ -264,10 +272,11 @@
             font-size: 0.8rem;
             font-weight: bold;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .white-key {
-            width: 60px;
+            width: 60px; /* Ancho fijo en modo normal */
             height: 100%;
             background-color: var(--piano-white);
             border: 1px solid #999;
@@ -277,13 +286,12 @@
         }
 
         .white-key.active {
-            background-color: #ddd;
-            transform: translateY(2px);
             background: linear-gradient(to bottom, #fff 0%, var(--accent-color) 100%);
+            transform: translateY(2px);
         }
 
         .black-key {
-            width: 36px;
+            width: 36px; /* Ancho fijo en modo normal */
             height: 60%;
             background-color: var(--piano-black);
             color: white;
@@ -295,13 +303,88 @@
         }
 
         .black-key.active {
-            background-color: #333;
             background: linear-gradient(to bottom, #222 0%, var(--accent-color) 100%);
         }
 
-        .hidden {
-            display: none !important;
+        /* Botón Flotante para salir de Landscape Fullscreen */
+        #exit-fullscreen-btn {
+            display: none; /* Oculto por defecto */
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            z-index: 100;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
         }
+
+        /* --- OPTIMIZACIÓN LANDSCAPE (HORIZONTAL) --- */
+        /* Cuando la pantalla está horizontal y el piano es visible */
+        @media screen and (orientation: landscape) {
+            
+            /* Ocultar interfaz normal cuando estamos en modo piano */
+            body.piano-mode-active header,
+            body.piano-mode-active footer {
+                display: none !important;
+            }
+
+            body.piano-mode-active main {
+                padding: 0;
+                margin: 0;
+                height: 100vh;
+                width: 100vw;
+            }
+
+            body.piano-mode-active #piano-view {
+                padding: 0;
+                margin: 0;
+                width: 100%;
+                height: 100%;
+                background: #000;
+                /* Centrar contenido */
+                display: flex;
+                align-items: center; 
+                justify-content: center;
+                overflow: hidden; /* Sin scroll en fullscreen */
+            }
+
+            body.piano-mode-active #piano-keyboard {
+                margin: 0;
+                width: 100%;
+                height: 100%; /* Ocupar toda la altura */
+            }
+
+            /* Teclas Blancas Elásticas */
+            body.piano-mode-active .white-key {
+                width: auto !important; /* Anular ancho fijo */
+                flex: 1; /* Repartir espacio equitativamente */
+                border-radius: 0 0 8px 8px;
+            }
+
+            /* Teclas Negras Elásticas (Cálculo CSS) */
+            body.piano-mode-active .black-key {
+                /* Fórmula Mágica para posición responsiva:
+                   left = ( (100% / TotalBlancas) * (IndiceBlancaPrevia + 1) ) - (AnchoNegra / 2)
+                */
+                width: var(--black-key-width-percent); /* Usar % en lugar de px */
+                left: calc( ((100% / var(--white-key-count)) * (var(--prev-white-index) + 1)) - (var(--black-key-width-percent) / 2) );
+                height: 65%; /* Un poco más largas en landscape */
+            }
+
+            /* Mostrar botón de salida */
+            body.piano-mode-active #exit-fullscreen-btn {
+                display: flex;
+            }
+        }
+
+        .hidden { display: none !important; }
 
         footer {
             background-color: #111;
@@ -311,18 +394,16 @@
             font-size: 0.7rem;
             flex-shrink: 0;
         }
-
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de carga -->
     <div id="loading-screen">
         <div>🌱 Brotes Musicales</div>
         <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Cargando...</div>
     </div>
 
-    <header>
+    <header id="main-header">
         <h1>Brotes Synth</h1>
         <div class="subtitle">Sintetizador Web para Móvil</div>
         
@@ -343,73 +424,34 @@
     </header>
 
     <main>
-        
-        <!-- VISTA 1: MAKEY MAKEY (PADS) -->
+        <!-- VISTA MAKEY -->
         <div id="makey-view">
-            <!-- Flechas -->
             <div class="d-pad-grid">
-                <div class="key-pad arrow-up" data-key="ArrowUp">
-                    <div class="key-icon">↑</div>
-                    <select class="note-select" data-target="ArrowUp"></select>
-                </div>
-                <div class="key-pad arrow-left" data-key="ArrowLeft">
-                    <div class="key-icon">←</div>
-                    <select class="note-select" data-target="ArrowLeft"></select>
-                </div>
-                <div class="key-pad arrow-down" data-key="ArrowDown">
-                    <div class="key-icon">↓</div>
-                    <select class="note-select" data-target="ArrowDown"></select>
-                </div>
-                <div class="key-pad arrow-right" data-key="ArrowRight">
-                    <div class="key-icon">→</div>
-                    <select class="note-select" data-target="ArrowRight"></select>
-                </div>
+                <div class="key-pad arrow-up" data-key="ArrowUp"><div class="key-icon">↑</div><select class="note-select" data-target="ArrowUp"></select></div>
+                <div class="key-pad arrow-left" data-key="ArrowLeft"><div class="key-icon">←</div><select class="note-select" data-target="ArrowLeft"></select></div>
+                <div class="key-pad arrow-down" data-key="ArrowDown"><div class="key-icon">↓</div><select class="note-select" data-target="ArrowDown"></select></div>
+                <div class="key-pad arrow-right" data-key="ArrowRight"><div class="key-icon">→</div><select class="note-select" data-target="ArrowRight"></select></div>
             </div>
-
-            <!-- Letras -->
             <div class="linear-grid">
-                <div class="key-pad" data-key="w">
-                    <div class="key-icon">W</div>
-                    <select class="note-select" data-target="w"></select>
-                </div>
-                <div class="key-pad" data-key="a">
-                    <div class="key-icon">A</div>
-                    <select class="note-select" data-target="a"></select>
-                </div>
-                <div class="key-pad" data-key="s">
-                    <div class="key-icon">S</div>
-                    <select class="note-select" data-target="s"></select>
-                </div>
-                <div class="key-pad" data-key="d">
-                    <div class="key-icon">D</div>
-                    <select class="note-select" data-target="d"></select>
-                </div>
-                <div class="key-pad" data-key="f">
-                    <div class="key-icon">F</div>
-                    <select class="note-select" data-target="f"></select>
-                </div>
-                <div class="key-pad" data-key="g">
-                    <div class="key-icon">G</div>
-                    <select class="note-select" data-target="g"></select>
-                </div>
+                <div class="key-pad" data-key="w"><div class="key-icon">W</div><select class="note-select" data-target="w"></select></div>
+                <div class="key-pad" data-key="a"><div class="key-icon">A</div><select class="note-select" data-target="a"></select></div>
+                <div class="key-pad" data-key="s"><div class="key-icon">S</div><select class="note-select" data-target="s"></select></div>
+                <div class="key-pad" data-key="d"><div class="key-icon">D</div><select class="note-select" data-target="d"></select></div>
+                <div class="key-pad" data-key="f"><div class="key-icon">F</div><select class="note-select" data-target="f"></select></div>
+                <div class="key-pad" data-key="g"><div class="key-icon">G</div><select class="note-select" data-target="g"></select></div>
             </div>
-
-            <!-- Extras (SIN CLICK) -->
             <div class="linear-grid">
-                <div class="key-pad wide" data-key=" ">
-                    <div class="key-icon">Espacio</div>
-                    <select class="note-select" data-target=" "></select>
-                </div>
+                <div class="key-pad wide" data-key=" "><div class="key-icon">Espacio</div><select class="note-select" data-target=" "></select></div>
             </div>
         </div>
 
-        <!-- VISTA 2: PIANO (TECLAS) -->
+        <!-- VISTA PIANO -->
         <div id="piano-view">
+            <button id="exit-fullscreen-btn" onclick="toggleView()" title="Salir">✕</button>
             <div id="piano-keyboard">
                 <!-- Se generará con JS -->
             </div>
         </div>
-
     </main>
 
     <footer>
@@ -417,17 +459,16 @@
     </footer>
 
     <script>
-        // Esperar a que todo el HTML cargue antes de ejecutar scripts
         document.addEventListener('DOMContentLoaded', () => {
 
-            // --- 0. ELIMINAR PANTALLA DE CARGA ---
+            // --- ELIMINAR CARGA ---
             const loadingScreen = document.getElementById('loading-screen');
             if(loadingScreen) {
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => loadingScreen.style.display = 'none', 500);
             }
 
-            // --- 1. CONFIGURACIÓN DE NOTAS ---
+            // --- VARIABLES MUSICALES ---
             const noteFrequencies = {};
             const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
             
@@ -448,33 +489,50 @@
                 ' ': 'F5'
             };
 
-            // --- 2. GESTIÓN DE VISTAS (Makey vs Piano) ---
-            window.toggleView = function() { // Hacer global para que el onclick del HTML funcione
+            // --- GESTIÓN DE VISTAS (Y CLASE PARA CSS LANDSCAPE) ---
+            window.toggleView = function() { 
                 const makeyDiv = document.getElementById('makey-view');
                 const pianoDiv = document.getElementById('piano-view');
                 const btn = document.getElementById('view-toggle-btn');
                 
-                // Determinar estado actual basado en visibilidad
                 const isPianoVisible = pianoDiv.style.display === 'flex';
 
                 if (!isPianoVisible) {
+                    // ACTIVAR MODO PIANO
                     makeyDiv.classList.add('hidden');
                     pianoDiv.style.display = 'flex';
                     btn.innerText = "🎮 Cambiar a Modo Makey";
+                    // Agregar clase al body para activar CSS de landscape fullscreen
+                    document.body.classList.add('piano-mode-active');
                 } else {
+                    // VOLVER A MODO MAKEY
                     pianoDiv.style.display = 'none';
                     makeyDiv.classList.remove('hidden');
                     btn.innerText = "🎹 Cambiar a Modo Piano";
+                    // Quitar clase
+                    document.body.classList.remove('piano-mode-active');
                 }
             };
 
-            // --- 3. RENDER PIANO ---
+            // --- RENDER PIANO RESPONSIVO ---
             function renderPiano() {
                 const container = document.getElementById('piano-keyboard');
                 container.innerHTML = '';
                 const startMidi = 60; // C4
                 const endMidi = 79;   // G5
                 let whiteKeyCount = 0;
+
+                // 1. Contar primero las teclas blancas para CSS
+                for (let i = startMidi; i <= endMidi; i++) {
+                    const noteNameRaw = noteNames[i % 12];
+                    if (!noteNameRaw.includes('#')) whiteKeyCount++;
+                }
+                
+                // Inyectar variable CSS al contenedor para cálculos de ancho
+                container.style.setProperty('--white-key-count', whiteKeyCount);
+
+                // 2. Generar Teclas
+                let currentWhiteIndex = -1; // Índice base 0
 
                 for (let i = startMidi; i <= endMidi; i++) {
                     const octave = Math.floor(i / 12) - 1;
@@ -483,25 +541,32 @@
                     const isBlack = noteNameRaw.includes('#');
 
                     if (!isBlack) {
+                        currentWhiteIndex++;
                         const key = document.createElement('div');
                         key.className = 'piano-key white-key';
                         key.setAttribute('data-note-piano', noteLabel);
                         key.innerText = noteNameRaw;
                         container.appendChild(key);
-                        whiteKeyCount++;
                     } else {
                         const key = document.createElement('div');
                         key.className = 'piano-key black-key';
                         key.setAttribute('data-note-piano', noteLabel);
-                        const leftPos = (whiteKeyCount * 60) - 18;
-                        key.style.left = `${leftPos}px`;
+                        
+                        // Posición Clásica (px) para modo vertical
+                        const leftPosPx = ((currentWhiteIndex + 1) * 60) - 18;
+                        key.style.left = `${leftPosPx}px`;
+
+                        // Posición Responsiva (CSS variable) para modo landscape
+                        // Pasamos el índice de la tecla blanca anterior para que CSS calcule el %
+                        key.style.setProperty('--prev-white-index', currentWhiteIndex);
+                        
                         container.appendChild(key);
                     }
                 }
             }
             renderPiano();
 
-            // --- 4. INICIALIZAR UI (Selectores) ---
+            // --- UI SELECTORES ---
             function initUI() {
                 const selects = document.querySelectorAll('.note-select');
                 selects.forEach(select => {
@@ -523,7 +588,7 @@
             }
             initUI();
 
-            // --- 5. MOTOR DE AUDIO ---
+            // --- AUDIO ENGINE ---
             let audioCtx;
             let isAudioStarted = false;
             const activeOscillators = {};
@@ -587,17 +652,15 @@
                 }
             }
 
-            // --- 6. EVENTOS DE ENTRADA ---
+            // --- INPUT HANDLERS ---
             
-            // Teclado Físico
+            // Teclado
             document.addEventListener('keydown', (e) => {
                 if (document.getElementById('piano-view').style.display === 'flex') return;
                 if (e.target.tagName === 'SELECT') return;
-
                 let key = e.key;
                 if (key === ' ') key = ' ';
                 if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
-
                 if (currentMapping.hasOwnProperty(key)) {
                     highlightKey(key, true);
                     playTone(key);
@@ -608,14 +671,13 @@
                 if (document.getElementById('piano-view').style.display === 'flex') return;
                 let key = e.key;
                 if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
-
                 if (currentMapping.hasOwnProperty(key)) {
                     highlightKey(key, false);
                     stopTone(key);
                 }
             });
 
-            // Touch en Pads Makey
+            // Touch Pads
             const pads = document.querySelectorAll('.key-pad');
             pads.forEach(pad => {
                 const keyId = pad.getAttribute('data-key');
@@ -640,7 +702,7 @@
                 pad.addEventListener('mouseleave', endPad);
             });
 
-            // Touch en Piano
+            // Touch Piano
             const pianoContainer = document.getElementById('piano-keyboard');
             const activePointers = new Map();
 
@@ -649,7 +711,6 @@
                     e.preventDefault();
                     const note = e.target.getAttribute('data-note-piano');
                     const id = "PIANO_" + note;
-                    
                     playTone(id, note);
                     e.target.classList.add('active');
                     activePointers.set(e.pointerId, { id, el: e.target });
@@ -686,7 +747,7 @@
                 }
             }
 
-        }); // End DOMContentLoaded
+        }); 
     </script>
 </body>
 </html>
