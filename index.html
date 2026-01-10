@@ -22,6 +22,7 @@
         * {
             box-sizing: border-box;
             -webkit-touch-callout: none; /* Prevenir menús contextuales en iOS */
+            outline: none; /* Evitar bordes de foco visuales que confunden */
         }
 
         body {
@@ -101,6 +102,8 @@
             animation: pulse 2s infinite;
             width: 80%;
             max-width: 300px;
+            /* Importante: evitar que el estilo de foco nativo de iOS se quede pegado */
+            -webkit-tap-highlight-color: transparent;
         }
 
         #view-toggle-btn {
@@ -236,7 +239,9 @@
         .arrow-left { grid-column: 1; grid-row: 2; }
         .arrow-down { grid-column: 2; grid-row: 2; }
         .arrow-right { grid-column: 3; grid-row: 2; }
-        .key-pad.wide { width: 170px; }
+        
+        /* Ajuste para los botones anchos (Espacio y Clic) */
+        .key-pad.wide { width: 130px; } /* Un poco más estrechos para que quepan dos */
 
         /* --- VISTA PIANO --- */
         #piano-view {
@@ -431,7 +436,10 @@
                 <div class="key-pad" data-key="g"><div class="key-icon">G</div><select class="note-select" data-target="g"></select></div>
             </div>
             <div class="linear-grid">
+                <!-- Espacio -->
                 <div class="key-pad wide" data-key=" "><div class="key-icon">Espacio</div><select class="note-select" data-target=" "></select></div>
+                <!-- NUEVO: Botón Clic (Makey Left Click) -->
+                <div class="key-pad wide" data-key="MOUSE_CLICK"><div class="key-icon">Clic</div><select class="note-select" data-target="MOUSE_CLICK"></select></div>
             </div>
         </div>
 
@@ -475,7 +483,8 @@
             const currentMapping = {
                 'ArrowUp': 'C4', 'ArrowDown': 'D4', 'ArrowLeft': 'E4', 'ArrowRight': 'F4',
                 'w': 'C5', 'a': 'G4', 's': 'A4', 'd': 'B4', 'f': 'D5', 'g': 'E5',
-                ' ': 'F5'
+                ' ': 'F5',
+                'MOUSE_CLICK': 'G5' // Nota por defecto para el Clic
             };
 
             // --- GESTIÓN DE VISTAS (Y CLASE PARA CSS LANDSCAPE) ---
@@ -484,6 +493,9 @@
                 const pianoDiv = document.getElementById('piano-view');
                 const btn = document.getElementById('view-toggle-btn');
                 
+                // Forzamos blur por si acaso
+                btn.blur();
+
                 const isPianoVisible = pianoDiv.style.display === 'flex';
 
                 if (!isPianoVisible) {
@@ -565,10 +577,12 @@
                     });
                     select.addEventListener('change', (e) => {
                         currentMapping[targetKey] = e.target.value;
-                        select.blur();
+                        select.blur(); // Importante: quitar foco tras seleccionar
                     });
+                    // Evitar que el evento suba y dispare notas
                     select.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: false});
                     select.addEventListener('mousedown', (e) => e.stopPropagation());
+                    select.addEventListener('keydown', (e) => e.stopPropagation()); 
                 });
             }
             initUI();
@@ -592,6 +606,9 @@
                 startBtn.style.backgroundColor = "#00ff9d";
                 startBtn.style.animation = "none";
                 startBtn.style.color = "#000";
+                
+                // CRUCIAL: Quitar el foco del botón para que el ESPACIO (Makey) no lo vuelva a pulsar
+                startBtn.blur();
             });
 
             function playTone(identifier, explicitNote = null) {
@@ -639,49 +656,97 @@
                 }
             }
 
-            // --- INPUT HANDLERS ---
+            // --- INPUT HANDLERS (OPTIMIZADOS PARA IPAD & MAKEY MAKEY) ---
             
-            // Teclado
-            document.addEventListener('keydown', (e) => {
+            // 1. Teclado (Window)
+            window.addEventListener('keydown', (e) => {
                 if (document.getElementById('piano-view').style.display === 'flex') return;
-                if (e.target.tagName === 'SELECT') return;
+                
+                // Si el foco está en un select o input, no tocar nota
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+
                 let key = e.key;
                 if (key === ' ') key = ' ';
                 if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
+                
                 if (currentMapping.hasOwnProperty(key)) {
+                    // IMPORTANTE: Prevenir scroll con flechas o acciones de sistema
+                    e.preventDefault(); 
+                    
                     highlightKey(key, true);
                     playTone(key);
                 }
-            });
+            }, { passive: false }); 
 
-            document.addEventListener('keyup', (e) => {
+            window.addEventListener('keyup', (e) => {
                 if (document.getElementById('piano-view').style.display === 'flex') return;
+                
                 let key = e.key;
                 if (key.length === 1 && key.match(/[a-z]/i)) key = key.toLowerCase();
+                
                 if (currentMapping.hasOwnProperty(key)) {
+                    e.preventDefault();
                     highlightKey(key, false);
                     stopTone(key);
                 }
             });
 
-            // Touch Pads
+            // 2. Control Global de CLIC (Para Makey Makey 'Click' input)
+            // Esto captura clics en cualquier parte de la pantalla que NO sean controles.
+            window.addEventListener('mousedown', (e) => {
+                // Verificar si estamos en modo piano o makey
+                const isPianoVisible = document.getElementById('piano-view').style.display === 'flex';
+                
+                // Filtro de seguridad:
+                // No disparar si se hace clic en: Botones, Selects, Opciones, Teclas de piano, o los pads visuales (porque esos tienen su propio listener)
+                const isControl = e.target.closest('button') || 
+                                  e.target.closest('select') || 
+                                  e.target.closest('.piano-key') ||
+                                  e.target.closest('.key-pad');
+
+                if (!isControl && !isPianoVisible) {
+                    // Es un clic en el fondo (o disparo del Makey Makey)
+                    
+                    // PREVENIR COMPORTAMIENTO DE CURSOR EN IPAD
+                    e.preventDefault(); 
+
+                    highlightKey('MOUSE_CLICK', true);
+                    playTone('MOUSE_CLICK');
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                // Soltar la nota MOUSE_CLICK al soltar el clic
+                highlightKey('MOUSE_CLICK', false);
+                stopTone('MOUSE_CLICK');
+            });
+
+
+            // 3. Touch Pads Visuales (Pantalla táctil directa)
             const pads = document.querySelectorAll('.key-pad');
             pads.forEach(pad => {
                 const keyId = pad.getAttribute('data-key');
                 const startPad = (e) => {
                     if (document.getElementById('piano-view').style.display === 'flex') return;
                     if (e.target.tagName === 'SELECT') return;
-                    if (e.cancelable) e.preventDefault();
+                    
+                    // Prevenir eventos fantasma (doble disparo por touch+mouse)
+                    if (e.cancelable && e.type !== 'mousedown') e.preventDefault(); 
+                    
                     pad.classList.add('active');
                     playTone(keyId);
+                    e.stopPropagation(); // Evitar que suba al window
                 };
                 const endPad = (e) => {
                     if (document.getElementById('piano-view').style.display === 'flex') return;
                     if (e.target.tagName === 'SELECT') return;
-                    if (e.cancelable) e.preventDefault();
+                    if (e.cancelable && e.type !== 'mouseup') e.preventDefault();
+                    
                     pad.classList.remove('active');
                     stopTone(keyId);
                 };
+                
+                // Mantenemos listeners táctiles y ratón local del botón
                 pad.addEventListener('touchstart', startPad, { passive: false });
                 pad.addEventListener('touchend', endPad, { passive: false });
                 pad.addEventListener('mousedown', startPad);
@@ -689,7 +754,7 @@
                 pad.addEventListener('mouseleave', endPad);
             });
 
-            // Touch Piano
+            // 4. Touch Piano
             const pianoContainer = document.getElementById('piano-keyboard');
             const activePointers = new Map();
 
@@ -727,6 +792,7 @@
             function highlightKey(key, isActive) {
                 let selector = `.key-pad[data-key="${key}"]`;
                 if (key === ' ') selector = `.key-pad[data-key=" "]`;
+                
                 const el = document.querySelector(selector);
                 if (el) {
                     if (isActive) el.classList.add('active');
@@ -736,7 +802,6 @@
         }
 
         // --- INICIALIZACIÓN SEGURA ---
-        // Esto asegura que la app arranque aunque el DOM ya esté listo
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initApp);
         } else {
@@ -744,7 +809,6 @@
         }
 
         // --- SAFETY NET ---
-        // Si por alguna razón la app falla al cargar, quitamos la pantalla de carga después de 2 segundos a la fuerza.
         setTimeout(() => {
             const loadingScreen = document.getElementById('loading-screen');
             if(loadingScreen && loadingScreen.style.display !== 'none') {
